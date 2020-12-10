@@ -16,7 +16,7 @@ class Pose:
                       dtype=np.float32) / 10.0
     vars = (sigmas * 2) ** 2
     last_id = -1
-    color = [0, 224, 255]
+    color = [255, 255, 255]
 
     def __init__(self, keypoints, confidence):
         super().__init__()
