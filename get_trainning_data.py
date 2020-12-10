@@ -7,6 +7,7 @@ import numpy as np
 import torch
 import json
 import math
+import mediapipe as mp
 
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "pose-estimation"))
@@ -72,11 +73,12 @@ def infer_fast(net, img, net_input_height_size, stride, upsample_ratio, cpu,
     return heatmaps, pafs, scale, pad
 
 
-def get_data(net, image_provider, name, send = False, cpu = False):
+def get_data(net, hands, image_provider, name, send = False, cpu = False):
     height_size = 256
     stride = 8
     upsample_ratio = 4
     num_keypoints = Pose.num_kpts
+    delay = 33
 
     data = {'name': name, 'frames': []}
 
@@ -85,6 +87,9 @@ def get_data(net, image_provider, name, send = False, cpu = False):
     """
 
     for img in image_provider:
+        img = cv2.cvtColor(cv2.flip(img, 1), cv2.COLOR_BGR2RGB)
+        ori = img.copy()
+
         heatmaps, pafs, scale, pad = infer_fast(net, img, height_size, stride, upsample_ratio, cpu)
 
         total_keypoints_num = 0
@@ -111,7 +116,7 @@ def get_data(net, image_provider, name, send = False, cpu = False):
                     pose_keypoints[kpt_id, 1] = int(all_keypoints[int(pose_entries[n][kpt_id]), 1])
             pose = Pose(pose_keypoints, pose_entries[n][18])
 
-            dist = abs(pose.keypoints[0][0] - image_provider.width/2)
+            dist = abs(pose.keypoints[0][0] - img.shape[0]/2)
             if dist < distMin:
                 distMin = dist
                 midPose = pose
@@ -120,7 +125,17 @@ def get_data(net, image_provider, name, send = False, cpu = False):
         blank_image = np.zeros((img.shape[0],img.shape[1],3), np.uint8)
 
         if midPose != None:
-            midePose.draw(blank_image)
+            midPose.draw(blank_image)
+
+        ori.flags.writeable = False
+
+        results = hands.process(ori)
+
+        if results.multi_hand_landmarks:
+            for f_hands in results.multi_hand_landmarks:
+                for landmark in f_hands.landmark:
+                    cv2.circle(blank_image, (int(landmark.x*blank_image.shape[0]), int(landmark.y*blank_image.shape[1])), 3, [255,255,255], -1)
+    
 
         cv2.imshow('Trainning frame', blank_image)
         key = cv2.waitKey(delay)
@@ -145,16 +160,18 @@ def init(cpu = False):
     net = net.eval()
     if not cpu:
         net = net.cuda()
+    
+    hands = mp.solutions.hands.Hands(min_detection_confidence=0.5, min_tracking_confidence=0.2)
 
-    return net
+    return net, hands
 
 
 def generate_data(path: str) -> dict:
     frames = VideoReader(path)
-    net = init()
+    net, hands = init()
     name = path.split('.')[0]
 
-    return get_data(net, frames, name)
+    return get_data(net, hands, frames, name)
 
 if __name__ == "__main__":
     generate_data("0")
