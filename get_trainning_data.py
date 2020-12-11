@@ -136,16 +136,16 @@ def get_data(net, hands, image_provider, name, send = False, cpu = False):
                 for landmark in f_hands.landmark:
                     cv2.circle(blank_image, (int(landmark.x*blank_image.shape[0]), int(landmark.y*blank_image.shape[1])), 3, [255,255,255], -1)
     
-
-        cv2.imshow('Trainning frame', blank_image)
-        key = cv2.waitKey(delay)
-        if key == 27:  # esc
-            return
-        elif key == 112:  # 'p'
-            if delay == 33:
-                delay = 0
-            else:
-                delay = 33
+        # cv2.imshow('Trainning frame', blank_image)
+        data['frames'].append(blank_image)
+        # key = cv2.waitKey(delay)
+        # if key == 27:  # esc
+        #     return
+        # elif key == 112:  # 'p'
+        #     if delay == 33:
+        #         delay = 0
+        #     else:
+        #         delay = 33
                     
     return data
 
